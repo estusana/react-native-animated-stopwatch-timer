@@ -9,11 +9,13 @@ const useTimer = ({
   onFinish = () => null,
   mode = 'stopwatch',
   intervalMs = 16,
+  needHour = false,
 }: {
   initialTimeInMs?: number;
   onFinish?: () => void;
   mode?: 'timer' | 'stopwatch';
   intervalMs?: number;
+  needHour: boolean;
 }) => {
   const direction = mode === 'timer' ? -1 : 1;
   const [elapsedInMs, setElapsedInMs] = useState(0);
@@ -103,7 +105,13 @@ const useTimer = ({
     tensOfMs: Math.floor(getSnapshot() / 10) % 100,
     lastDigit: countInSeconds % 10,
     tens: Math.floor(countInSeconds / 10) % 6,
-    minutes: Math.floor(countInSeconds / 60),
+    minutes: needHour
+      ? Math.floor((countInSeconds % 3600) / 60)
+      : Math.floor(countInSeconds / 60),
+    minutestens: needHour
+      ? Math.floor((countInSeconds % 3600) / 60)
+      : Math.floor(countInSeconds / 60),
+    hours: Math.floor(countInSeconds / 3600),
     play,
     pause,
     reset,

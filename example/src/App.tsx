@@ -16,10 +16,12 @@ export default function App() {
           ref={stopwatchRef}
           containerStyle={styles.stopWatchContainer}
           textCharStyle={styles.stopWatchChar}
-          trailingZeros={2}
+          trailingZeros={0}
+          needHour={true}
+          autostart
           // Uncomment the below 2 lines to use it in timer mode
-          // mode="timer"
-          // initialTimeInMs={30 * 1000}
+          mode="timer"
+          initialTimeInMs={3000 * 1000 + 601000}
           onFinish={() => {
             Alert.alert('Timer Finished!');
           }}

@@ -1,4 +1,9 @@
-import React, { ForwardedRef, forwardRef, useImperativeHandle } from 'react';
+import React, {
+  ForwardedRef,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+} from 'react';
 import Animated, {
   EntryAnimationsValues,
   ExitAnimationsValues,
@@ -16,6 +21,14 @@ const DEFAULT_ANIMATION_DISTANCE = 80;
 const DEFAULT_ANIMATION_DURATION = 200;
 
 export interface StopwatchTimerProps {
+  /**
+   * Starts the animation on load
+   */
+  autostart?: boolean;
+  /**
+   * Show hour digit if needed
+   */
+  needHour?: boolean;
   /**
    * The enter/exit animation duration in milliseconds of a digit.
    */
@@ -115,6 +128,8 @@ function Stopwatch(
     trailingZeros = 1,
     decimalSeparator = ',',
     intervalMs = 16,
+    needHour = false,
+    autostart = false,
   }: StopwatchTimerProps,
   ref: ForwardedRef<StopwatchTimerMethods>
 ) {
@@ -127,11 +142,13 @@ function Stopwatch(
     reset,
     pause,
     getSnapshot,
+    hours,
   } = useTimer({
     initialTimeInMs,
     onFinish,
     mode,
     intervalMs,
+    needHour,
   });
 
   useImperativeHandle(ref, () => ({
@@ -144,6 +161,7 @@ function Stopwatch(
   const isSecondsDigitMounted = useSharedValue(false);
   const isTensOfSecondsDigitMounted = useSharedValue(false);
   const isMinutesDigitMounted = useSharedValue(false);
+  const isHoursMounted = useSharedValue(false);
 
   const createEntering =
     (isFirstRender: SharedValue<boolean>) =>
@@ -197,6 +215,11 @@ function Stopwatch(
     textCharStyle || {}
   );
 
+  useEffect(() => {
+    if (autostart) play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <View style={[styles.container, containerStyle]}>
       {leadingZeros === 2 && (
@@ -210,12 +233,40 @@ function Stopwatch(
           0
         </Text>
       )}
+      {needHour ? (
+        <>
+          <Animated.Text
+            key={`${hours}-hours`}
+            style={[
+              styles.defaultCharStyle,
+              textCharStyleWithoutWidth,
+              digitStyle,
+            ]}
+            entering={createEntering(isHoursMounted)}
+            exiting={exiting}
+          >
+            {hours}
+          </Animated.Text>
+          <Text
+            style={[
+              styles.defaultCharStyle,
+              textCharStyleWithoutWidth,
+              separatorStyle,
+            ]}
+          >
+            :
+          </Text>
+        </>
+      ) : (
+        <></>
+      )}
       <Animated.Text
         key={`${minutes}-minutes`}
         style={[styles.defaultCharStyle, textCharStyleWithoutWidth, digitStyle]}
         entering={createEntering(isMinutesDigitMounted)}
         exiting={exiting}
       >
+        {needHour && minutes < 10 ? '0' : ''}
         {minutes}
       </Animated.Text>
       <Text

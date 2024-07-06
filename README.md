@@ -5,6 +5,11 @@
 ![platforms: ios, android, web](https://img.shields.io/badge/platform-ios%2C%20android-blue)
 [![license MIT](https://img.shields.io/badge/license-MIT-brightgreen)](https://github.com/rgommezz/react-native-animated-stopwatch-timer/blob/master/LICENSE)
 
+### Updates
+
+- Added hour option to the timer (looks better trailingZeros set to 0)
+- Added auto start type
+
  <p><i>A React Native Stopwatch/Timer component that empowers <b>reanimated worklets</b> to smoothly animate the digit change. Cross-platform, performant, with all <b>layout animations executed on the UI thread at 60FPS</b>. Compatible with Expo.</i></p>
  
 - [How it is built](#how-it-is-built)
@@ -20,9 +25,11 @@
 - [License](#license)
 
 ## How it is built
+
 Want to learn about the inner workings? Check out this deep dive that delves into the beauty of custom layout animations: [**Custom Layout Animations with Reanimated**](https://www.reactnative.university/blog/reanimated-custom-layout-animations)
 
 ## Features
+
 - **:fire: Performant**: all digit animations are executed on the UI thread
 - **:gear: Highly configurable**: easily control its behaviour via props, like animation parameters and styles
 - **:watch: Dual mode**: use it as a stopwatch or timer
@@ -90,7 +97,7 @@ const App = () => {
 ## Props
 
 | Name                 | Required | Type                               | Description                                                                                                                                                                                                                                                                                                                            |
-|----------------------| -------- |------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| -------------------- | -------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `mode`               | no       | `stopwatch` or `timer`             | Whether the component should work as a **stopwatch or as a timer**. Defaults to `stopwatch`                                                                                                                                                                                                                                            |
 | `initialTimeInMs`    | no       | `number`                           | Initial time in miliseconds                                                                                                                                                                                                                                                                                                            |
 | `onFinish`           | no       | `() => void`                       | Callback executed when the timer reaches 0 (only when working in **timer mode** and `initialTimeInMs` prop is provided)                                                                                                                                                                                                                |
@@ -104,8 +111,8 @@ const App = () => {
 | `enterAnimationType` | no       | `'slide-in-up' or 'slide-in-down'` | Whether the new digit should enter from the top or the bottom                                                                                                                                                                                                                                                                          |
 | `separatorStyle`     | no       | `StyleProp<TextStyle>`             | Extra style applied only to separators. In this case, the colon (`:`) and the comma (`,`)                                                                                                                                                                                                                                              |
 | `textCharStyle`      | no       | `StyleProp<TextStyle>`             | The style applied to each individual character of the stopwatch/timer                                                                                                                                                                                                                                                                  |
-| `decimalSeparator`   | no | `string`                           | Decimal separator for formatting time. Defaults to a comma `,`                                                                                                                                                                                                                                                                         |
-| `intervalMs`         | no | `number`                           | The interval in milliseconds to update the stopwatch/timer. Defaults to `16`                                                                                                                                                                                                                                                           |
+| `decimalSeparator`   | no       | `string`                           | Decimal separator for formatting time. Defaults to a comma `,`                                                                                                                                                                                                                                                                         |
+| `intervalMs`         | no       | `number`                           | The interval in milliseconds to update the stopwatch/timer. Defaults to `16`                                                                                                                                                                                                                                                           |
 
 ## Methods
 

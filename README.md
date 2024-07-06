@@ -48,7 +48,7 @@ https://user-images.githubusercontent.com/4982414/212443504-7c46a701-7e13-4504-8
 ## Installation
 
 ```sh
-npm install react-native-animated-stopwatch-timer
+npm install @umar4911/react-native-animated-stopwatch-timer
 ```
 
 You also need to install `react-native-reanimated` `2.5.x` or higher.

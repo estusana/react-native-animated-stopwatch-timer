@@ -43,12 +43,12 @@ https://user-images.githubusercontent.com/4982414/212443504-7c46a701-7e13-4504-8
 
 ## Try it out
 
-🧑‍💻 Run the snack [example app](https://snack.expo.dev/@rgommezz/react-native-animated-stopwatch-timer) to see it in action. The source code for the example is under the [/example](/example) folder.
+The source code for the example is under the [/example](/example) folder.
 
 ## Installation
 
 ```sh
-npm install @umar4911/react-native-animated-stopwatch-timer
+npm install @umar4911/react-native-updated-stopwatch-timer
 ```
 
 You also need to install `react-native-reanimated` `2.5.x` or higher.
@@ -72,7 +72,7 @@ You can use this component in two different modes:
 import { useRef } from 'react';
 import StopwatchTimer, {
   StopwatchTimerMethods,
-} from 'react-native-animated-stopwatch-timer';
+} from 'react-native-updated-stopwatch-timer';
 
 const App = () => {
   const stopwatchTimerRef = useRef<StopwatchTimerMethods>(null);
@@ -101,6 +101,7 @@ const App = () => {
 | `mode`               | no       | `stopwatch` or `timer`             | Whether the component should work as a **stopwatch or as a timer**. Defaults to `stopwatch`                                                                                                                                                                                                                                            |
 | `initialTimeInMs`    | no       | `number`                           | Initial time in miliseconds                                                                                                                                                                                                                                                                                                            |
 | `onFinish`           | no       | `() => void`                       | Callback executed when the timer reaches 0 (only when working in **timer mode** and `initialTimeInMs` prop is provided)                                                                                                                                                                                                                |
+| `needHour`           | no       | `() => void`                       | Adds hour to the stopwatch too                                                                                                                                                                                                                                                                                                         |
 | `trailingZeros`      | no       | `0`, `1` or `2`                    | If `0`, the component will only display seconds and minutes. If `1`, the component will display seconds, minutes, and a hundredth of ms. If `2`, the component will display seconds, minutes, and tens of ms. Defaults to `1`                                                                                                          |
 | `animationDuration`  | no       | `number`                           | The enter/exit animation duration in milliseconds of a digit. Defaults to `80`                                                                                                                                                                                                                                                         |
 | `animationDelay`     | no       | `number`                           | The enter/exit animation delay in milliseconds of a digit. Defaults to `0`                                                                                                                                                                                                                                                             |

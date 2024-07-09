@@ -20,8 +20,8 @@ export default function App() {
           needHour={true}
           autostart
           // Uncomment the below 2 lines to use it in timer mode
-          mode="timer"
-          initialTimeInMs={3000 * 1000 + 601000}
+          // mode="timer"
+          // initialTimeInMs={3000 * 1000 + 601000}
           onFinish={() => {
             Alert.alert('Timer Finished!');
           }}

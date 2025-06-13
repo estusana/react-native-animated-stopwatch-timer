@@ -1,0 +1,52 @@
+{
+    "compilerOptions": {
+        "baseUrl": "./",
+        "paths": {
+            "react-native-animated-stopwatch-timer": [
+                "./src/index"
+            ]
+        },
+        // Relaxed settings for development
+        "allowUnreachableCode": true,
+        "allowUnusedLabels": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "jsx": "react",
+        "lib": [
+            "esnext"
+        ],
+        "module": "esnext",
+        "moduleResolution": "node",
+        "noFallthroughCasesInSwitch": false,
+        "noImplicitReturns": false,
+        "noImplicitUseStrict": false,
+        "noStrictGenericChecks": true,
+        "noUncheckedIndexedAccess": false,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "strict": false,
+        "target": "esnext",
+        // Additional relaxed settings
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "strictFunctionTypes": false,
+        "strictBindCallApply": false,
+        "strictPropertyInitialization": false,
+        "noImplicitThis": false,
+        "alwaysStrict": false
+    },
+    "include": [
+        "src/**/*",
+        "example/src/**/*",
+        "__tests__/**/*",
+        "jest.setup.js",
+        "jest-environment.js"
+    ],
+    "exclude": [
+        "node_modules",
+        "lib",
+        "coverage"
+    ]
+}

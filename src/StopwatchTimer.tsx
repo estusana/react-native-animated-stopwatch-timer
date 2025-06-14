@@ -1,15 +1,17 @@
 import React, {
-  ForwardedRef,
+  type ForwardedRef,
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
 } from 'react';
 import Animated, {
-  EntryAnimationsValues,
-  ExitAnimationsValues,
-  SharedValue,
+  type EntryAnimationsValues,
+  type ExitAnimationsValues,
   useSharedValue,
   withDelay,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
@@ -19,6 +21,25 @@ import useTimer from './useTimer';
 const DEFAULT_ANIMATION_DELAY = 0;
 const DEFAULT_ANIMATION_DISTANCE = 80;
 const DEFAULT_ANIMATION_DURATION = 200;
+
+// Animation presets for better performance and user experience
+const ANIMATION_PRESETS = {
+  smooth: {
+    damping: 20,
+    stiffness: 200,
+    mass: 0.8,
+  },
+  bouncy: {
+    damping: 8,
+    stiffness: 100,
+    mass: 1,
+  },
+  quick: {
+    damping: 15,
+    stiffness: 300,
+    mass: 0.6,
+  },
+} as const;
 
 export interface StopwatchTimerProps {
   /**
@@ -41,6 +62,18 @@ export interface StopwatchTimerProps {
    * The enter/exit animation distance in dp of a digit.
    */
   animationDistance?: number;
+  /**
+   * Animation preset for enhanced user experience
+   */
+  animationPreset?: 'smooth' | 'bouncy' | 'quick' | 'custom';
+  /**
+   * Enable spring-based animations for more natural feel
+   */
+  useSpringAnimation?: boolean;
+  /**
+   * Performance optimization mode
+   */
+  performanceMode?: 'balanced' | 'performance' | 'quality';
   /**
    * The style of the component View container.
    */
@@ -111,210 +144,304 @@ export interface StopwatchTimerMethods {
   getSnapshot: () => number;
 }
 
-function Stopwatch(
-  {
-    animationDelay = DEFAULT_ANIMATION_DELAY,
-    animationDistance = DEFAULT_ANIMATION_DISTANCE,
-    animationDuration = DEFAULT_ANIMATION_DURATION,
-    containerStyle,
-    enterAnimationType = 'slide-in-up',
-    mode = 'stopwatch',
-    digitStyle,
-    initialTimeInMs,
-    leadingZeros = 1,
-    onFinish,
-    separatorStyle,
-    textCharStyle,
-    trailingZeros = 1,
-    decimalSeparator = ',',
-    intervalMs = 16,
-    needHour = false,
-    autostart = false,
-  }: StopwatchTimerProps,
-  ref: ForwardedRef<StopwatchTimerMethods>
-) {
-  const {
-    tensOfMs,
-    lastDigit,
-    tens,
-    minutes,
-    play,
-    reset,
-    pause,
-    getSnapshot,
-    hours,
-  } = useTimer({
-    initialTimeInMs,
-    onFinish,
-    mode,
-    intervalMs,
-    needHour,
-  });
+const Stopwatch = forwardRef<StopwatchTimerMethods, StopwatchTimerProps>(
+  function Stopwatch(
+    {
+      animationDelay = DEFAULT_ANIMATION_DELAY,
+      animationDistance = DEFAULT_ANIMATION_DISTANCE,
+      animationDuration = DEFAULT_ANIMATION_DURATION,
+      animationPreset = 'smooth',
+      useSpringAnimation = false,
+      performanceMode = 'balanced',
+      containerStyle,
+      enterAnimationType = 'slide-in-up',
+      mode = 'stopwatch',
+      digitStyle,
+      initialTimeInMs,
+      leadingZeros = 1,
+      onFinish,
+      separatorStyle,
+      textCharStyle,
+      trailingZeros = 1,
+      decimalSeparator = ',',
+      intervalMs = 16,
+      needHour = false,
+      autostart = false,
+    }: StopwatchTimerProps,
+    ref: ForwardedRef<StopwatchTimerMethods>
+  ) {
+    const {
+      tensOfMs,
+      lastDigit,
+      tens,
+      minutes,
+      play,
+      reset,
+      pause,
+      getSnapshot,
+      hours,
+    } = useTimer({
+      initialTimeInMs,
+      onFinish,
+      mode,
+      intervalMs,
+      needHour,
+    });
 
-  useImperativeHandle(ref, () => ({
-    play,
-    pause,
-    reset,
-    getSnapshot,
-  }));
+    // Memoized imperative handle to prevent unnecessary re-creations
+    useImperativeHandle(
+      ref,
+      () => ({
+        play,
+        pause,
+        reset,
+        getSnapshot,
+      }),
+      [play, pause, reset, getSnapshot]
+    );
 
-  const isSecondsDigitMounted = useSharedValue(false);
-  const isTensOfSecondsDigitMounted = useSharedValue(false);
-  const isMinutesDigitMounted = useSharedValue(false);
-  const isHoursMounted = useSharedValue(false);
+    // Consolidated SharedValue for better memory efficiency
+    const digitMountStates = useSharedValue({
+      seconds: false,
+      tensOfSeconds: false,
+      minutes: false,
+      hours: false,
+    });
 
-  const createEntering =
-    (isFirstRender: SharedValue<boolean>) =>
-    (values: EntryAnimationsValues) => {
-      'worklet';
-      if (!isFirstRender.value) {
-        // Skip entering animation on first render
-        isFirstRender.value = true;
-        return { initialValues: {}, animations: {} };
-      }
-      const animations = {
-        originY: withDelay(
-          animationDelay,
-          withTiming(values.targetOriginY, {
-            duration: animationDuration,
-          })
-        ),
+    // Memoized animation configuration based on performance mode
+    const animationConfig = useMemo(() => {
+      const validPresets = ['smooth', 'bouncy', 'quick'] as const;
+      const selectedPreset = validPresets.includes(animationPreset as any)
+        ? (animationPreset as keyof typeof ANIMATION_PRESETS)
+        : 'smooth';
+      const preset = ANIMATION_PRESETS[selectedPreset];
+
+      const baseConfig = {
+        duration:
+          performanceMode === 'performance'
+            ? animationDuration * 0.7
+            : animationDuration,
+        delay:
+          performanceMode === 'performance'
+            ? animationDelay * 0.5
+            : animationDelay,
+        distance: animationDistance,
       };
-      const enterDirection = enterAnimationType === 'slide-in-up' ? -1 : 1;
-      const initialValues = {
-        originY: values.targetOriginY + animationDistance * enterDirection,
-      };
-      return {
-        initialValues,
-        animations,
-      };
-    };
 
-  const exiting = (values: ExitAnimationsValues) => {
-    'worklet';
-    const exitDirection = enterAnimationType === 'slide-in-up' ? 1 : -1;
-    const animations = {
-      originY: withDelay(
-        animationDelay,
-        withTiming(values.currentOriginY + animationDistance * exitDirection, {
-          duration: animationDuration,
-        })
-      ),
-    };
-    const initialValues = {
-      originY: values.currentOriginY,
-    };
-    return {
-      initialValues,
-      animations,
-    };
-  };
+      // Return properly typed configuration based on animation type
+      return useSpringAnimation
+        ? { ...baseConfig, ...preset, useSpringAnimation: true as const }
+        : { ...baseConfig, useSpringAnimation: false as const };
+    }, [
+      animationPreset,
+      useSpringAnimation,
+      performanceMode,
+      animationDuration,
+      animationDelay,
+      animationDistance,
+    ]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { width, ...textCharStyleWithoutWidth } = StyleSheet.flatten(
-    textCharStyle || {}
-  );
+    // Optimized animation creation function with consolidated state
+    const createEntering = useCallback(
+      (digitType: 'seconds' | 'tensOfSeconds' | 'minutes' | 'hours') =>
+        (values: EntryAnimationsValues) => {
+          'worklet';
+          if (!digitMountStates.value[digitType]) {
+            // Skip entering animation on first render
+            digitMountStates.value = {
+              ...digitMountStates.value,
+              [digitType]: true,
+            };
+            return { initialValues: {}, animations: {} };
+          }
 
-  useEffect(() => {
-    if (autostart) play();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+          const enterDirection = enterAnimationType === 'slide-in-up' ? -1 : 1;
+          const initialValues = {
+            originY:
+              values.targetOriginY + animationConfig.distance * enterDirection,
+          };
 
-  return (
-    <View style={[styles.container, containerStyle]}>
-      {leadingZeros === 2 && (
-        <Text
+          const animations =
+            useSpringAnimation && 'damping' in animationConfig
+              ? {
+                  originY: withDelay(
+                    animationConfig.delay,
+                    withSpring(values.targetOriginY, {
+                      damping: animationConfig.damping,
+                      stiffness: animationConfig.stiffness,
+                      mass: animationConfig.mass,
+                    })
+                  ),
+                }
+              : {
+                  originY: withDelay(
+                    animationConfig.delay,
+                    withTiming(values.targetOriginY, {
+                      duration: animationConfig.duration,
+                    })
+                  ),
+                };
+
+          return { initialValues, animations };
+        },
+      [
+        digitMountStates,
+        enterAnimationType,
+        animationConfig,
+        useSpringAnimation,
+      ]
+    );
+
+    // Optimized exiting animation function
+    const exiting = useCallback(
+      (values: ExitAnimationsValues) => {
+        'worklet';
+        const exitDirection = enterAnimationType === 'slide-in-up' ? 1 : -1;
+        const initialValues = {
+          originY: values.currentOriginY,
+        };
+
+        const animations =
+          useSpringAnimation && 'damping' in animationConfig
+            ? {
+                originY: withDelay(
+                  animationConfig.delay,
+                  withSpring(
+                    values.currentOriginY +
+                      animationConfig.distance * exitDirection,
+                    {
+                      damping: animationConfig.damping,
+                      stiffness: animationConfig.stiffness,
+                      mass: animationConfig.mass,
+                    }
+                  )
+                ),
+              }
+            : {
+                originY: withDelay(
+                  animationConfig.delay,
+                  withTiming(
+                    values.currentOriginY +
+                      animationConfig.distance * exitDirection,
+                    {
+                      duration: animationConfig.duration,
+                    }
+                  )
+                ),
+              };
+
+        return { initialValues, animations };
+      },
+      [enterAnimationType, animationConfig, useSpringAnimation]
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { width, ...textCharStyleWithoutWidth } = StyleSheet.flatten(
+      textCharStyle || {}
+    );
+
+    useEffect(() => {
+      if (autostart) play();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    return (
+      <View style={[styles.container, containerStyle]}>
+        {leadingZeros === 2 && (
+          <Text
+            style={[
+              styles.defaultCharStyle,
+              textCharStyleWithoutWidth,
+              digitStyle,
+            ]}
+          >
+            0
+          </Text>
+        )}
+        {needHour ? (
+          <>
+            <Animated.Text
+              key={`${hours}-hours`}
+              style={[
+                styles.defaultCharStyle,
+                textCharStyleWithoutWidth,
+                digitStyle,
+              ]}
+              entering={createEntering('hours')}
+              exiting={exiting}
+            >
+              {hours}
+            </Animated.Text>
+            <Text
+              style={[
+                styles.defaultCharStyle,
+                textCharStyleWithoutWidth,
+                separatorStyle,
+              ]}
+            >
+              :
+            </Text>
+          </>
+        ) : (
+          <></>
+        )}
+        <Animated.Text
+          key={`${minutes}-minutes`}
           style={[
             styles.defaultCharStyle,
             textCharStyleWithoutWidth,
             digitStyle,
           ]}
+          entering={createEntering('minutes')}
+          exiting={exiting}
         >
-          0
+          {needHour && minutes < 10 ? '0' : ''}
+          {minutes}
+        </Animated.Text>
+        <Text
+          style={[
+            styles.defaultCharStyle,
+            textCharStyleWithoutWidth,
+            separatorStyle,
+          ]}
+        >
+          :
         </Text>
-      )}
-      {needHour ? (
-        <>
-          <Animated.Text
-            key={`${hours}-hours`}
-            style={[
-              styles.defaultCharStyle,
-              textCharStyleWithoutWidth,
-              digitStyle,
-            ]}
-            entering={createEntering(isHoursMounted)}
-            exiting={exiting}
-          >
-            {hours}
-          </Animated.Text>
-          <Text
-            style={[
-              styles.defaultCharStyle,
-              textCharStyleWithoutWidth,
-              separatorStyle,
-            ]}
-          >
-            :
-          </Text>
-        </>
-      ) : (
-        <></>
-      )}
-      <Animated.Text
-        key={`${minutes}-minutes`}
-        style={[styles.defaultCharStyle, textCharStyleWithoutWidth, digitStyle]}
-        entering={createEntering(isMinutesDigitMounted)}
-        exiting={exiting}
-      >
-        {needHour && minutes < 10 ? '0' : ''}
-        {minutes}
-      </Animated.Text>
-      <Text
-        style={[
-          styles.defaultCharStyle,
-          textCharStyleWithoutWidth,
-          separatorStyle,
-        ]}
-      >
-        :
-      </Text>
-      <Animated.Text
-        key={`${tens}-tens`}
-        style={[styles.defaultCharStyle, textCharStyleWithoutWidth, digitStyle]}
-        entering={createEntering(isTensOfSecondsDigitMounted)}
-        exiting={exiting}
-      >
-        {tens}
-      </Animated.Text>
-      <Animated.Text
-        key={`${lastDigit}-count`}
-        style={[styles.defaultCharStyle, textCharStyleWithoutWidth, digitStyle]}
-        entering={createEntering(isSecondsDigitMounted)}
-        exiting={exiting}
-      >
-        {lastDigit}
-      </Animated.Text>
-      {trailingZeros > 0 && (
-        <>
-          <Text
-            style={[
-              styles.defaultCharStyle,
-              textCharStyleWithoutWidth,
-              separatorStyle,
-            ]}
-          >
-            {decimalSeparator}
-          </Text>
-          <Text
-            style={[
-              styles.defaultCharStyle,
-              textCharStyleWithoutWidth,
-              digitStyle,
-            ]}
-          >
-            {tensOfMs >= 10 ? String(tensOfMs).charAt(0) : 0}
-          </Text>
-          {trailingZeros === 2 && (
+        <Animated.Text
+          key={`${tens}-tens`}
+          style={[
+            styles.defaultCharStyle,
+            textCharStyleWithoutWidth,
+            digitStyle,
+          ]}
+          entering={createEntering('tensOfSeconds')}
+          exiting={exiting}
+        >
+          {tens}
+        </Animated.Text>
+        <Animated.Text
+          key={`${lastDigit}-count`}
+          style={[
+            styles.defaultCharStyle,
+            textCharStyleWithoutWidth,
+            digitStyle,
+          ]}
+          entering={createEntering('seconds')}
+          exiting={exiting}
+        >
+          {lastDigit}
+        </Animated.Text>
+        {trailingZeros > 0 && (
+          <>
+            <Text
+              style={[
+                styles.defaultCharStyle,
+                textCharStyleWithoutWidth,
+                separatorStyle,
+              ]}
+            >
+              {decimalSeparator}
+            </Text>
             <Text
               style={[
                 styles.defaultCharStyle,
@@ -322,16 +449,27 @@ function Stopwatch(
                 digitStyle,
               ]}
             >
-              {tensOfMs >= 10
-                ? String(tensOfMs).charAt(1)
-                : String(tensOfMs).charAt(0)}
+              {tensOfMs >= 10 ? String(tensOfMs).charAt(0) : 0}
             </Text>
-          )}
-        </>
-      )}
-    </View>
-  );
-}
+            {trailingZeros === 2 && (
+              <Text
+                style={[
+                  styles.defaultCharStyle,
+                  textCharStyleWithoutWidth,
+                  digitStyle,
+                ]}
+              >
+                {tensOfMs >= 10
+                  ? String(tensOfMs).charAt(1)
+                  : String(tensOfMs).charAt(0)}
+              </Text>
+            )}
+          </>
+        )}
+      </View>
+    );
+  }
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -344,8 +482,6 @@ const styles = StyleSheet.create({
   },
 });
 
-const StopwatchTimer = forwardRef<StopwatchTimerMethods, StopwatchTimerProps>(
-  Stopwatch
-);
+const StopwatchTimer = React.memo(Stopwatch);
 
 export default StopwatchTimer;

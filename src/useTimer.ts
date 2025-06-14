@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import throttle from 'lodash.throttle';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { throttle } from './utils/throttle';
+
+// Declare global timer functions for React Native
+declare const setInterval: (callback: () => void, delay: number) => number;
+declare const clearInterval: (id: number) => void;
 
 /**
- * A custom hook that handles the state for the timer
+ * Optimized custom hook that handles the state for the timer
+ * Enhanced with better memory management and performance optimizations
  */
 const useTimer = ({
   initialTimeInMs = 0,
@@ -21,12 +26,23 @@ const useTimer = ({
   const [elapsedInMs, setElapsedInMs] = useState(0);
   const startTime = useRef<number | null>(null);
   const pausedTime = useRef<number | null>(null);
-  const intervalId = useRef<NodeJS.Timer | null>(null);
+  const intervalId = useRef<number | null>(null);
+
+  // Memoized throttled onFinish callback to prevent unnecessary re-creations
   const throttledOnFinish = useMemo(
     () => throttle(onFinish, 100, { trailing: false }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [onFinish]
   );
+
+  // Cleanup effect to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (intervalId.current !== null) {
+        clearInterval(intervalId.current);
+      }
+      throttledOnFinish.cancel();
+    };
+  }, [throttledOnFinish]);
 
   useEffect(() => {
     // Ensure that the timer is reset when the initialTimeInMs changes
@@ -34,22 +50,14 @@ const useTimer = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTimeInMs]);
 
-  useEffect(() => {
-    // Checking if it's a timer and it reached 0
-    if (mode === 'timer' && elapsedInMs >= initialTimeInMs) {
-      removeInterval();
-      setElapsedInMs(initialTimeInMs);
-      throttledOnFinish();
-    }
-  }, [elapsedInMs, initialTimeInMs, mode, throttledOnFinish]);
-
-  function getSnapshot() {
+  // Memoized snapshot calculation to avoid repeated computations
+  const getSnapshot = useCallback(() => {
     return Math.abs(initialTimeInMs + elapsedInMs * direction);
-  }
+  }, [initialTimeInMs, elapsedInMs, direction]);
 
-  function play() {
+  const play = useCallback(() => {
     // Already playing, returning early
-    if (intervalId.current) {
+    if (intervalId.current !== null) {
       return;
     }
     // Timer mode and it reached 0, returning early
@@ -71,47 +79,64 @@ const useTimer = ({
         pausedTime.current = null;
       }
     }, intervalMs);
-  }
+  }, [elapsedInMs, initialTimeInMs, mode, intervalMs]);
 
-  function resetState() {
+  const resetState = useCallback(() => {
     setElapsedInMs(0);
     startTime.current = null;
     pausedTime.current = null;
-  }
+  }, []);
 
-  function removeInterval() {
-    if (intervalId.current) {
+  const removeInterval = useCallback(() => {
+    if (intervalId.current !== null) {
       clearInterval(intervalId.current);
       intervalId.current = null;
     }
-  }
+  }, []);
 
-  function pause() {
+  useEffect(() => {
+    // Checking if it's a timer and it reached 0
+    if (mode === 'timer' && elapsedInMs >= initialTimeInMs) {
+      removeInterval();
+      setElapsedInMs(initialTimeInMs);
+      throttledOnFinish();
+    }
+  }, [elapsedInMs, initialTimeInMs, mode, removeInterval, throttledOnFinish]);
+
+  const pause = useCallback(() => {
     removeInterval();
     if (!pausedTime.current && elapsedInMs > 0) {
       pausedTime.current = Date.now();
     }
     return getSnapshot();
-  }
+  }, [removeInterval, elapsedInMs, getSnapshot]);
 
-  function reset() {
+  const reset = useCallback(() => {
     removeInterval();
     resetState();
-  }
+  }, [removeInterval, resetState]);
 
-  const countInSeconds = Math.floor(getSnapshot() / 1000);
+  // Memoized time calculations to prevent unnecessary re-computations
+  const timeValues = useMemo(() => {
+    const snapshot = Math.abs(initialTimeInMs + elapsedInMs * direction);
+    const countInSeconds = Math.floor(snapshot / 1000);
+
+    return {
+      tensOfMs: Math.floor(snapshot / 10) % 100,
+      lastDigit: countInSeconds % 10,
+      tens: Math.floor(countInSeconds / 10) % 6,
+      minutes: needHour
+        ? Math.floor((countInSeconds % 3600) / 60)
+        : Math.floor(countInSeconds / 60),
+      minutestens: needHour
+        ? Math.floor((countInSeconds % 3600) / 60)
+        : Math.floor(countInSeconds / 60),
+      hours: Math.floor(countInSeconds / 3600),
+    };
+  }, [initialTimeInMs, elapsedInMs, direction, needHour]);
 
   return {
-    tensOfMs: Math.floor(getSnapshot() / 10) % 100,
-    lastDigit: countInSeconds % 10,
-    tens: Math.floor(countInSeconds / 10) % 6,
-    minutes: needHour
-      ? Math.floor((countInSeconds % 3600) / 60)
-      : Math.floor(countInSeconds / 60),
-    minutestens: needHour
-      ? Math.floor((countInSeconds % 3600) / 60)
-      : Math.floor(countInSeconds / 60),
-    hours: Math.floor(countInSeconds / 3600),
+    ...timeValues,
     play,
     pause,
     reset,
